@@ -1,0 +1,17 @@
+{
+    "name": "space-invaders",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.ts",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "Faisal Al Qasimi",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/node": "^20.6.2"
+    },
+    "dependencies": {
+        "keypress": "^0.2.1"
+    }
+}
