@@ -2,7 +2,7 @@ console.clear();
 import { stdout } from "process";
 const hero = "🧑‍";
 const boardWidth = 20;
-const boardHeight = 20;
+const boardHeight = 10;
 const alienSpacing = 2;
 const speedInFramesPerSecond = 30;
 let numAliens = 50;
@@ -115,7 +115,6 @@ function checkAlienLocation() {
             }
         }
     }
-    console.log("1, leftMostAlien", leftMostAlien, rightMostAlien);
 
     if (direction === AlienDirection.Right) {
         moveAliens(1, 0);
@@ -131,7 +130,6 @@ function checkAlienLocation() {
         });
 
         // if aliens reach right boundary, set direction left
-        console.log("2 rightMostAlien", rightMostAlien, leftMostAlien);
         if (!canGoRight()) direction = AlienDirection.Left;
     } else if (direction === AlienDirection.Left) {
         moveAliens(-1, 0);
@@ -179,7 +177,7 @@ function drawAliens() {
             } else if (el !== null) {
                 stdout.write(el);
             } else {
-                stdout.write(rowIndex.toString());
+                stdout.write(" ");
             }
             stdout.write(" ");
         });
@@ -219,7 +217,9 @@ function init() {
         }
         board.push(alienRow);
     }
-    const heroRow = [hero, ...Array(boardWidth).fill(null)];
+    const heroRow = [...Array(boardWidth).fill(null)];
+    const heroIndex = Math.floor(boardWidth / 2);
+    heroRow[heroIndex] = hero;
     board.push(heroRow);
 }
 init();
@@ -249,13 +249,47 @@ function main() {
         // checkLocation
     }, 50);
 }
+function moveHero(dir: string) {
+    // move hero left or right
+    // check if hero is at edge
+    // if at edge, do nothing
+    // if not at edge, move hero
+    // if keypress left, move hero left
+    // if keypress right, move hero right
+    const heroRow = board[board.length - 1];
+    const heroIndex = heroRow.indexOf(hero);
+    if (dir === "left") {
+        if (heroIndex === 0) return;
+        heroRow[heroIndex] = null;
+        heroRow[heroIndex - 1] = hero;
+    }
+    if (dir === "right") {
+        if (heroIndex === heroRow.length - 1) return;
+        heroRow[heroIndex] = null;
+        heroRow[heroIndex + 1] = hero;
+    }
+}
+
+// function handleKeyPress(key: any) {
+//     console.log("key", key);
+//     if (key.name === "left") {
+//         console.log("left");
+
 // listen for the "keypress" event
 process.stdin.on("keypress", function (_, key) {
-    // Quit on ctrl-c
-    console.log("keypress", key);
-    if (key && key.ctrl && key.name == "c") {
-        console.log("Invade again sometime!");
-        process.exit();
+    if (key) {
+        switch (key.name) {
+            case "left":
+                moveHero("left");
+                break;
+            case "right":
+                moveHero("right");
+                break;
+            // Quit on ctrl-c
+            case key.ctrl && "c":
+                console.log("Invade again sometime!");
+                process.exit();
+        }
     }
 });
 
