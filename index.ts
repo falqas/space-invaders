@@ -1,10 +1,12 @@
 console.clear();
 import { stdout } from "process";
-const hero = "🧑🏾‍🚀";
-const boardWidth = 30;
-const boardHeight = 10;
+const hero = "🧑‍";
+const boardWidth = 20;
+const boardHeight = 20;
 const alienSpacing = 2;
 const speedInFramesPerSecond = 30;
+let numAliens = 50;
+
 enum AlienSpecies {
     A = "👾",
     B = "🛸",
@@ -48,12 +50,17 @@ class Alien {
 }
 // aliens have locationx&y, speed, life/death, shoot
 // const aliens = Array(20).fill(alien);
-const board: Array<(Alien | null)[]> = [];
+type boardElements = Alien | string | null;
+const board: Array<boardElements[]> = [];
+
+function isAlien(el: boardElements): el is Alien {
+    return (el as Alien)?.species !== undefined;
+}
 
 function moveAliens(xStep = 0, yStep = 0) {
     board.forEach((boardRow) => {
         boardRow.forEach((el) => {
-            if (el !== null) {
+            if (isAlien(el)) {
                 el.xLocation += xStep;
                 el.yLocation += yStep;
             }
@@ -66,7 +73,7 @@ function canGoRight() {
     const collen = board.length;
     const rowlen = board[0].length;
     for (let i = 0; i < collen; i++) {
-        if (board[i][rowlen - 1] !== null) return false;
+        if (isAlien(board[i][rowlen - 1])) return false;
     }
     return true;
 }
@@ -76,7 +83,7 @@ function canGoLeft() {
     const collen = board.length;
     const rowlen = board[0].length;
     for (let i = 0; i < collen; i++) {
-        if (board[i][0] !== null) return false;
+        if (isAlien(board[i][0])) return false;
     }
     return true;
 }
@@ -113,8 +120,14 @@ function checkAlienLocation() {
     if (direction === AlienDirection.Right) {
         moveAliens(1, 0);
         board.forEach((boardRow) => {
-            boardRow.unshift(null);
-            boardRow.pop();
+            let hasAlien = false;
+            boardRow.forEach((el) => {
+                if (isAlien(el)) hasAlien = true;
+            });
+            if (hasAlien) {
+                boardRow.unshift(null);
+                boardRow.pop();
+            }
         });
 
         // if aliens reach right boundary, set direction left
@@ -123,8 +136,14 @@ function checkAlienLocation() {
     } else if (direction === AlienDirection.Left) {
         moveAliens(-1, 0);
         board.forEach((boardRow) => {
-            boardRow.shift();
-            boardRow.push(null);
+            let hasAlien = false;
+            boardRow.forEach((el) => {
+                if (isAlien(el)) hasAlien = true;
+            });
+            if (hasAlien) {
+                boardRow.shift();
+                boardRow.push(null);
+            }
         });
         // TODO implement go down
         if (!canGoLeft()) direction = AlienDirection.Right;
@@ -155,10 +174,12 @@ function drawAliens() {
             // if (alienInstance.isAlive) {
             // stdout.write(alienInstance.species);
             // }
-            if (el !== null) {
+            if (isAlien(el)) {
                 stdout.write(el.species);
+            } else if (el !== null) {
+                stdout.write(el);
             } else {
-                stdout.write(" ");
+                stdout.write(rowIndex.toString());
             }
             stdout.write(" ");
         });
@@ -170,13 +191,12 @@ function drawBoard() {}
 
 function init() {
     console.clear();
-    const alienRows = 5;
     const alienCols = 10;
     const initialSpeed = 1;
     for (let y = 0; y <= boardHeight; y++) {
-        const alienRow: (Alien | null)[] = [];
+        const alienRow: boardElements[] = [];
         for (let x = 0; x <= boardWidth; x++) {
-            if (x <= alienCols) {
+            if (x <= alienCols && numAliens > 0) {
                 const newAlien = new Alien(
                     y % 2 === 0 ? AlienSpecies.A : AlienSpecies.B,
                     x * alienSpacing,
@@ -185,6 +205,7 @@ function init() {
                     true
                 );
                 alienRow.push(newAlien);
+                numAliens--;
             } else {
                 const deadAlien = new Alien(
                     y % 2 === 0 ? AlienSpecies.A : AlienSpecies.B,
@@ -193,11 +214,13 @@ function init() {
                     initialSpeed,
                     false
                 );
+                alienRow.push(null);
             }
-            alienRow.push(null);
         }
         board.push(alienRow);
     }
+    const heroRow = [hero, ...Array(boardWidth).fill(null)];
+    board.push(heroRow);
 }
 init();
 // setInterval(init, 1000);
@@ -226,7 +249,6 @@ function main() {
         // checkLocation
     }, 50);
 }
-console.log("board", board);
 // listen for the "keypress" event
 process.stdin.on("keypress", function (_, key) {
     // Quit on ctrl-c
