@@ -6,7 +6,10 @@ const boardHeight = 10;
 const alienSpacing = 2;
 const speedInFramesPerSecond = 30;
 let numAliens = 50;
-
+const alienZap = "⚡";
+let alienZapLocation: [number, number] | null = null;
+const alienCols = 10;
+const alienIndices: Array<[number, number]> = [];
 enum AlienSpecies {
     A = "👾",
     B = "🛸",
@@ -66,6 +69,21 @@ function moveAliens(xStep = 0, yStep = 0) {
             }
         });
     });
+}
+
+function alienShoots(x: number, y: number) {
+    board[y][x] = alienZap;
+}
+function checkShouldAlienShoot() {
+    console.log("alienZapLocation", alienZapLocation);
+    if (!alienZapLocation) {
+        const randomAlienIndex = Math.floor(
+            Math.random() * alienIndices.length
+        );
+        alienZapLocation = alienIndices[randomAlienIndex];
+        alienShoots(alienZapLocation[0], alienZapLocation[1]);
+        alienZapLocation[0]--;
+    }
 }
 
 function canGoRight() {
@@ -154,8 +172,6 @@ function checkAlienLocation() {
     }
 }
 function drawAliens() {
-    const visual = board.map((alienRow) => alienRow.join(","));
-    // console.log("alients", aliens);
     board.forEach((boardRow) => {
         boardRow.forEach((el, rowIndex) => {
             // console.log(
@@ -189,7 +205,6 @@ function drawBoard() {}
 
 function init() {
     console.clear();
-    const alienCols = 10;
     const initialSpeed = 1;
     for (let y = 0; y <= boardHeight; y++) {
         const alienRow: boardElements[] = [];
@@ -203,15 +218,9 @@ function init() {
                     true
                 );
                 alienRow.push(newAlien);
+                alienIndices.push([x, y]);
                 numAliens--;
             } else {
-                const deadAlien = new Alien(
-                    y % 2 === 0 ? AlienSpecies.A : AlienSpecies.B,
-                    x * alienSpacing,
-                    y,
-                    initialSpeed,
-                    false
-                );
                 alienRow.push(null);
             }
         }
@@ -233,6 +242,17 @@ var keypress = require("keypress");
 keypress(process.stdin);
 
 // main loop
+function drawAlienZap() {
+    if (alienZapLocation) {
+        if (!isAlien(board[alienZapLocation[1]][alienZapLocation[0]])) {
+            board[alienZapLocation[1]][alienZapLocation[0]] = alienZap;
+        }
+        alienZapLocation[1]++;
+        if (alienZapLocation[1] > boardHeight) {
+            alienZapLocation = null;
+        }
+    }
+}
 
 function main() {
     setInterval(function () {
@@ -243,8 +263,10 @@ function main() {
         // process.stdout.write("Waiting" + dots); // write text
         console.clear();
         drawAliens();
+        drawAlienZap();
         // moveAliens();
         checkAlienLocation();
+        checkShouldAlienShoot();
         // checkCollision()
         // checkLocation
     }, 50);
