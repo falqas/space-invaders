@@ -1,5 +1,6 @@
-console.clear();
 import { stdout } from "process";
+const keypress = require("keypress");
+
 const hero = "🧑‍";
 const boardWidth = 20;
 const boardHeight = 10;
@@ -9,7 +10,8 @@ let numAliens = 50;
 const alienZap = "⚡";
 let alienZapLocation: [number, number] | null = null;
 const alienCols = 10;
-const alienIndices: Array<[number, number]> = [];
+let alienIndices: Array<[number, number]> = [];
+let alienInertia: number = numAliens / 2;
 enum AlienSpecies {
     A = "👾",
     B = "🛸",
@@ -21,13 +23,6 @@ enum AlienDirection {
 }
 let direction = AlienDirection.Right;
 
-// interface AlienProps {
-//     species: AlienSpecies
-//     xLocation: number;
-//     yLocation: number;
-//     initialSpeed: number;
-//     isAlive: boolean;
-// }
 class Alien {
     species: AlienSpecies;
     xLocation: number;
@@ -51,8 +46,7 @@ class Alien {
         this.directon = direction;
     }
 }
-// aliens have locationx&y, speed, life/death, shoot
-// const aliens = Array(20).fill(alien);
+
 type boardElements = Alien | string | null;
 const board: Array<boardElements[]> = [];
 
@@ -71,8 +65,10 @@ function moveAliens(xStep = 0, yStep = 0) {
     });
 }
 
-function alienShoots(x: number, y: number) {
-    board[y][x] = alienZap;
+function alienShoots(alienZapLocation: [number, number]) {
+    const [x, y] = alienZapLocation;
+    if (!isAlien(board[y][x])) {
+    }
 }
 function checkShouldAlienShoot() {
     console.log("alienZapLocation", alienZapLocation);
@@ -81,8 +77,7 @@ function checkShouldAlienShoot() {
             Math.random() * alienIndices.length
         );
         alienZapLocation = alienIndices[randomAlienIndex];
-        alienShoots(alienZapLocation[0], alienZapLocation[1]);
-        alienZapLocation[0]--;
+        alienShoots(alienZapLocation);
     }
 }
 
@@ -99,7 +94,6 @@ function canGoRight() {
 function canGoLeft() {
     // check if aliens have room to go right
     const collen = board.length;
-    const rowlen = board[0].length;
     for (let i = 0; i < collen; i++) {
         if (isAlien(board[i][0])) return false;
     }
@@ -115,79 +109,59 @@ function checkAlienLocation() {
     // could also use dfs here
     const colLen = boardHeight;
     const rowLen = board[0].length;
-    for (let i = 0; i < rowLen; i++) {
-        for (let j = 0; j < colLen; j++) {
-            const alien = board[j][i];
-            if (alien !== null) {
-                leftMostAlien = j;
-                break;
-            }
-        }
-    }
-    for (let i = rowLen - 1; i > 0; i--) {
-        for (let j = colLen - 1; j > 0; j--) {
-            const alien = board[j][i];
-            if (alien !== null) {
-                rightMostAlien = j;
-                break;
-            }
-        }
-    }
-
-    if (direction === AlienDirection.Right) {
-        moveAliens(1, 0);
-        board.forEach((boardRow) => {
-            let hasAlien = false;
-            boardRow.forEach((el) => {
-                if (isAlien(el)) hasAlien = true;
+    alienInertia =
+        alienInertia === 0 ? alienIndices.length / 2 : alienInertia - 1;
+    if (alienInertia === 0) {
+        if (direction === AlienDirection.Right) {
+            alienIndices = [];
+            board.forEach((boardRow, boardRowIndex) => {
+                // move aliens right
+                let hasAlien = false;
+                const oldAlienRow = boardRow;
+                const newAlienRow = [...Array(boardWidth).fill(null)];
+                for (let i = 0; i < oldAlienRow.length; i++) {
+                    const el = oldAlienRow[i];
+                    if (isAlien(el)) {
+                        newAlienRow[i + 1] = el;
+                        alienIndices.push([i + 1, boardRowIndex]);
+                        hasAlien = true;
+                    }
+                }
+                if (hasAlien) {
+                    board[boardRowIndex] = newAlienRow;
+                }
             });
-            if (hasAlien) {
-                boardRow.unshift(null);
-                boardRow.pop();
-            }
-        });
 
-        // if aliens reach right boundary, set direction left
-        if (!canGoRight()) direction = AlienDirection.Left;
-    } else if (direction === AlienDirection.Left) {
-        moveAliens(-1, 0);
-        board.forEach((boardRow) => {
-            let hasAlien = false;
-            boardRow.forEach((el) => {
-                if (isAlien(el)) hasAlien = true;
+            // if aliens reach right boundary, set direction left
+            if (!canGoRight()) direction = AlienDirection.Left;
+        } else if (direction === AlienDirection.Left) {
+            alienIndices = [];
+            board.forEach((boardRow, boardRowIndex) => {
+                let hasAlien = false;
+                const oldAlienRow = boardRow;
+                const newAlienRow = [...Array(boardWidth).fill(null)];
+                for (let i = 0; i < oldAlienRow.length; i++) {
+                    const el = oldAlienRow[i];
+                    if (isAlien(el)) {
+                        newAlienRow[i - 1] = el;
+                        alienIndices.push([i - 1, boardRowIndex]);
+                        hasAlien = true;
+                    }
+                }
+                if (hasAlien) board[boardRowIndex] = newAlienRow;
             });
-            if (hasAlien) {
-                boardRow.shift();
-                boardRow.push(null);
-            }
-        });
-        // TODO implement go down
-        if (!canGoLeft()) direction = AlienDirection.Right;
+            // TODO implement go down
+            if (!canGoLeft()) direction = AlienDirection.Right;
+        }
         // if (leftMostAlien === 0) direction = AlienDirection.Down;
     } else if (direction === AlienDirection.Down) {
         // move down & reset direction to right
-        moveAliens(0, 1);
-
         direction = AlienDirection.Right;
     }
 }
-function drawAliens() {
+function drawBoard() {
     board.forEach((boardRow) => {
         boardRow.forEach((el, rowIndex) => {
-            // console.log(
-            //     "x, y",
-            //     alienInstance.xLocation,
-            //     alienInstance.yLocation
-            // );
-            // const leftAlien = alienRow[0];
-            // for (let i = 0; i < 100; i++) {
-            //     if
-
-            // }
-            // for (let i = 0; i < leftMostAlien.xLocation; i++) stdout.write(" ");
-            // if (alienInstance.isAlive) {
-            // stdout.write(alienInstance.species);
-            // }
             if (isAlien(el)) {
                 stdout.write(el.species);
             } else if (el !== null) {
@@ -201,11 +175,8 @@ function drawAliens() {
     });
 }
 
-function drawBoard() {}
-
 function init() {
     console.clear();
-    const initialSpeed = 1;
     for (let y = 0; y <= boardHeight; y++) {
         const alienRow: boardElements[] = [];
         for (let x = 0; x <= boardWidth; x++) {
@@ -214,7 +185,7 @@ function init() {
                     y % 2 === 0 ? AlienSpecies.A : AlienSpecies.B,
                     x * alienSpacing,
                     y,
-                    initialSpeed,
+                    1,
                     true
                 );
                 alienRow.push(newAlien);
@@ -232,11 +203,6 @@ function init() {
     board.push(heroRow);
 }
 init();
-// setInterval(init, 1000);
-
-var i = 0; // dots counter
-var left = true;
-var keypress = require("keypress");
 
 // make `process.stdin` begin emitting "keypress" events
 keypress(process.stdin);
@@ -244,32 +210,33 @@ keypress(process.stdin);
 // main loop
 function drawAlienZap() {
     if (alienZapLocation) {
-        if (!isAlien(board[alienZapLocation[1]][alienZapLocation[0]])) {
-            board[alienZapLocation[1]][alienZapLocation[0]] = alienZap;
+        const [currentX, currentY] = alienZapLocation;
+        if (!isAlien(board[currentY][currentX])) {
+            board[currentY][currentX] = alienZap;
         }
-        alienZapLocation[1]++;
+        if (board[currentY - 1] && !isAlien(board[currentY - 1][currentX])) {
+            board[currentY - 1][currentX] = null;
+        }
+
+        // board[alienZapLocation[1] - 1][alienZapLocation[0]] = null;
+
         if (alienZapLocation[1] > boardHeight) {
+            board[alienZapLocation[1]][alienZapLocation[0]] = null;
             alienZapLocation = null;
+        } else {
+            alienZapLocation[1]++;
         }
     }
 }
 
 function main() {
     setInterval(function () {
-        // process.stdout.clearLine(); // clear current text
-        // process.stdout.cursorTo(0); // move cursor to beginning of line
-        // i = (i + 1) % 4;
-        // var dots = new Array(i + 1).join(".");
-        // process.stdout.write("Waiting" + dots); // write text
         console.clear();
-        drawAliens();
-        drawAlienZap();
-        // moveAliens();
+        drawBoard();
         checkAlienLocation();
         checkShouldAlienShoot();
-        // checkCollision()
-        // checkLocation
-    }, 50);
+        drawAlienZap();
+    }, 1000 / speedInFramesPerSecond);
 }
 function moveHero(dir: string) {
     // move hero left or right
@@ -291,11 +258,6 @@ function moveHero(dir: string) {
         heroRow[heroIndex + 1] = hero;
     }
 }
-
-// function handleKeyPress(key: any) {
-//     console.log("key", key);
-//     if (key.name === "left") {
-//         console.log("left");
 
 // listen for the "keypress" event
 process.stdin.on("keypress", function (_, key) {
