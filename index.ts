@@ -6,6 +6,10 @@ import keypress from 'keypress'; // older package, no typescript support
 const isDebugEnabled = true;
 
 const hero = '🧑‍';
+enum AlienSpecies {
+  A = '👾',
+  B = '🛸',
+}
 const boardWidth = 35;
 const boardHeight = 10;
 const alienCols = 10;
@@ -13,23 +17,87 @@ const alienSpacing = 2; // Ensure that alienSpacing is less than boardWidth / al
 const speedInFramesPerSecond = isDebugEnabled ? 20 : 30;
 const alienZap = '⚡';
 const numAliens = 50;
+let heroIndex = Math.floor(boardWidth / 2);
 let quote: string = '';
-
 let alienIndices: Array<[number, number]> = [];
 let alienZapLocation: [number, number] | null = null;
 let alienInertia: number = numAliens / 2;
 let alienZapInertia: number = Math.round(numAliens / 5);
 
-enum AlienSpecies {
-  A = '👾',
-  B = '🛸',
-}
 enum AlienDirection {
   Left,
   Right,
   Down,
 }
+class Alien {
+  species: AlienSpecies;
+  constructor(species: AlienSpecies) {
+    this.species = species;
+  }
+}
+
+type boardElements = Alien | string | null;
+const board: Array<boardElements[]> = [];
+
 let direction = AlienDirection.Right;
+
+// Initializes board with aliens and hero, then starts main game loop
+function init() {
+  let numAliensToSpawn = numAliens;
+  for (let y = 0; y < boardHeight; y++) {
+    const alienRow: boardElements[] = [];
+    for (let x = 0; x < boardWidth; x++) {
+      if (x < alienCols && numAliensToSpawn > 0) {
+        const newAlien = new Alien(
+          y % 2 === 0 ? AlienSpecies.A : AlienSpecies.B
+        );
+        alienRow.push(newAlien);
+        alienIndices.push([x, y]);
+        const gaps = [...Array(alienSpacing).fill(null)];
+        alienRow.push(...gaps);
+        numAliensToSpawn--;
+      } else {
+        alienRow.push(null);
+      }
+    }
+    board.push(alienRow);
+  }
+  const heroRow = [...Array(boardWidth).fill(null)];
+  board.push(heroRow);
+  placeHero();
+  main();
+}
+
+init();
+
+// Make process.stdin begin emitting "keypress" events
+keypress(process.stdin);
+
+// Listen for "keypress" event
+process.stdin.on('keypress', function (_, key) {
+  if (key) {
+    switch (key.name) {
+      case 'left':
+        moveHero('left');
+        break;
+      case 'right':
+        moveHero('right');
+        break;
+      // Quit on ctrl-c
+      case key.ctrl && 'c':
+        console.log('Invade again sometime!');
+        process.stderr.write('\x1B[?25h'); // Show terminal cursor
+        process.exit();
+    }
+  }
+});
+
+// Required for vscode debugging
+if (process.stdin.isTTY) {
+  process.stdin.setRawMode(true);
+}
+
+process.stderr.write('\x1B[?25l'); // Hide terminal cursor
 
 // Main game loop
 function main() {
@@ -141,33 +209,6 @@ function shouldMoveAlienZap() {
   }
 }
 
-class Alien {
-  species: AlienSpecies;
-  xLocation: number;
-  yLocation: number;
-  initialSpeed: number;
-  isAlive: boolean;
-  directon: AlienDirection; // not all aliens need this in retrospect, only first and last in a row
-  constructor(
-    species: AlienSpecies,
-    xLocation: number,
-    yLocation: number,
-    initialSpeed = 1,
-    isAlive = true,
-    direction = AlienDirection.Right
-  ) {
-    this.species = species;
-    this.xLocation = xLocation;
-    this.yLocation = yLocation;
-    this.initialSpeed = initialSpeed;
-    this.isAlive = isAlive;
-    this.directon = direction;
-  }
-}
-
-type boardElements = Alien | string | null;
-const board: Array<boardElements[]> = [];
-
 function isAlien(el: boardElements): el is Alien {
   return (el as Alien)?.species !== undefined;
 }
@@ -188,11 +229,10 @@ function shouldAlienShoot() {
 }
 
 function isHeroHit() {
-  const heroLocation = board[board.length - 1].indexOf(hero);
   if (
     alienZapLocation &&
-    alienZapLocation[0] === heroLocation &&
-    alienZapLocation[1] === board.length - 1
+    alienZapLocation[0] === heroIndex &&
+    alienZapLocation[1] === boardHeight
   ) {
     return true;
   }
@@ -218,10 +258,6 @@ function canGoLeft() {
   return true;
 }
 
-// Make `process.stdin` begin emitting "keypress" events
-keypress(process.stdin);
-
-init();
 function moveAlienZap() {
   if (alienZapLocation) {
     const [currentX, currentY] = alienZapLocation;
@@ -257,76 +293,22 @@ function moveHero(dir: string) {
   // if keypress left, move hero left
   // if keypress right, move hero right
   const heroRow = board[board.length - 1];
-  const heroIndex = heroRow.indexOf(hero);
   if (dir === 'left') {
     if (heroIndex === 0) return;
     heroRow[heroIndex] = null;
-    heroRow[heroIndex - 1] = hero;
+    heroIndex--;
   }
   if (dir === 'right') {
     if (heroIndex === heroRow.length - 1) return;
     heroRow[heroIndex] = null;
-    heroRow[heroIndex + 1] = hero;
+    heroIndex++;
   }
-}
-
-// listen for the "keypress" event
-process.stdin.on('keypress', function (_, key) {
-  if (key) {
-    switch (key.name) {
-      case 'left':
-        moveHero('left');
-        break;
-      case 'right':
-        moveHero('right');
-        break;
-      // Quit on ctrl-c
-      case key.ctrl && 'c':
-        console.log('Invade again sometime!');
-        process.stderr.write('\x1B[?25h'); // Show terminal cursor
-        process.exit();
-    }
-  }
-});
-if (process.stdin.isTTY) {
-  process.stdin.setRawMode(true);
-}
-process.stdin.resume();
-process.stderr.write('\x1B[?25l'); // Hide terminal cursor
-
-function init() {
-  let numAliensToSpawn = numAliens;
-  for (let y = 0; y < boardHeight; y++) {
-    const alienRow: boardElements[] = [];
-    for (let x = 0; x < boardWidth; x++) {
-      if (x < alienCols && numAliensToSpawn > 0) {
-        const newAlien = new Alien(
-          y % 2 === 0 ? AlienSpecies.A : AlienSpecies.B,
-          x * alienSpacing,
-          y,
-          1,
-          true
-        );
-        alienRow.push(newAlien);
-        alienIndices.push([x, y]);
-        const gaps = [...Array(alienSpacing).fill(null)];
-        alienRow.push(...gaps);
-        numAliensToSpawn--;
-      } else {
-        alienRow.push(null);
-      }
-    }
-    board.push(alienRow);
-  }
-  const heroRow = [...Array(boardWidth).fill(null)];
-  board.push(heroRow);
-  placeHero();
-  main();
+  board[board.length - 1][heroIndex] = hero;
 }
 
 function placeHero() {
   const heroRow = [...Array(boardWidth).fill(null)];
-  const heroIndex = Math.floor(boardWidth / 2);
+  heroIndex = Math.floor(boardWidth / 2);
   heroRow[heroIndex] = hero;
   board[board.length - 1] = heroRow;
 }
@@ -339,10 +321,9 @@ function logDebugInfo() {
   console.log('numAliens', numAliens);
   console.log('alienInertia', alienInertia);
   console.log('direction', direction);
-  console.log('alienZapLocation', alienZapLocation);
   console.log('alienZapInertia', alienZapInertia);
-  const heroLocation = board[board.length - 1].indexOf(hero);
-  console.log('hero location', heroLocation, board.length - 1);
+  console.log('alienZapLocation', alienZapLocation);
+  console.log('heroIndex', heroIndex);
   console.log('alienIndices.length', alienIndices.length);
   console.log('alienIndices', alienIndices);
   console.log('\n');
