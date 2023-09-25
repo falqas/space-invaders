@@ -2,19 +2,23 @@ import { stdout } from 'process';
 // @ts-ignore
 import keypress from 'keypress'; // older package, no typescript support
 
+// Shows debug info in the console, slower frame rate
+const isDebugEnabled = true;
+
 const hero = '🧑‍';
 const boardWidth = 35;
 const boardHeight = 10;
 const alienCols = 10;
 const alienSpacing = 2; // Ensure that alienSpacing is less than boardWidth / alienCols
-const speedInFramesPerSecond = 30;
+const speedInFramesPerSecond = isDebugEnabled ? 20 : 30;
 const alienZap = '⚡';
 const numAliens = 50;
-const isDebugEnabled = true;
+let quote: string = '';
 
 let alienIndices: Array<[number, number]> = [];
 let alienZapLocation: [number, number] | null = null;
 let alienInertia: number = numAliens / 2;
+let alienZapInertia: number = Math.round(numAliens / 5);
 
 enum AlienSpecies {
   A = '👾',
@@ -34,71 +38,27 @@ function main() {
     // Clear the console for the illusion of animation
     console.clear();
     drawBoard();
-    moveAliens();
-    checkShouldAlienShoot();
-    drawAlienZap();
+    if (shouldAliensMove()) {
+      moveAliens();
+    }
+    if (shouldAlienShoot()) {
+      alienShoots();
+    }
+    if (isHeroHit()) {
+      placeHero();
+      quote = getInspirationalQuote();
+    }
+    if (shouldMoveAlienZap()) {
+      moveAlienZap();
+    }
     if (isDebugEnabled) {
       logDebugInfo();
     }
   }, 1000 / speedInFramesPerSecond);
 }
 
-function shouldAliensMove() {
-  // Determine whether aliens should move
-  // Based on value of alienInertia
-  if (alienInertia === 0) {
-    // Reset alienInertia
-    alienInertia = alienIndices.length / 2;
-    return true;
-  } else {
-    alienInertia -= 1;
-    return false;
-  }
-}
-function getNextAlienIndex(currentX: number, currentY: number) {
-  if (direction === AlienDirection.Right) {
-    return [currentX + 1, currentY];
-  }
-  if (direction === AlienDirection.Left) {
-    return [currentX - 1, currentY];
-  }
-  return [currentX - 1, currentY];
-}
-function moveAliens() {
-  // Go right until at border, then go left until at border, repeat
-  if (!canGoRight()) direction = AlienDirection.Left;
-  if (!canGoLeft()) direction = AlienDirection.Right;
-  if (shouldAliensMove()) {
-    const newAlienIndices: Array<[number, number]> = [];
-    // Iterate through board.length - 1, bc last row is hero
-    for (let i = 0; i < board.length - 1; i++) {
-      const boardRowIndex = i;
-      const oldAlienRow = board[boardRowIndex];
-      // Create a new row to replace the old row, prefilled with null
-      const newAlienRow = [...Array(boardWidth).fill(null)];
-      for (let j = 0; j < oldAlienRow.length; j++) {
-        const el = oldAlienRow[j];
-        // We only want to move aliens, no other elements
-        if (isAlien(el)) {
-          // Get the next location of each alien after moving
-          const [nextX, _] = getNextAlienIndex(j, boardRowIndex);
-          newAlienRow[nextX] = el;
-          newAlienIndices.push([nextX, boardRowIndex]);
-        }
-        board[boardRowIndex] = newAlienRow;
-      }
-    }
-
-    // Reassign alienIndices
-    alienIndices = newAlienIndices;
-    // TODO implement go down
-    //   if (!canGoLeft()) direction = AlienDirection.Right;
-    // }
-  }
-}
-
+// Draw each element in the board
 function drawBoard() {
-  // Draw each element in the board
   // The board is a 2D array, so we iterate using 2 nested loops
   board.forEach((boardRow) => {
     boardRow.forEach((el) => {
@@ -114,6 +74,73 @@ function drawBoard() {
     stdout.write('\n');
   });
 }
+
+// Determine whether aliens should move, based on value of alienInertia
+function shouldAliensMove() {
+  // Derived from number of aliens on board
+  if (alienInertia === 0) {
+    // Reset alienInertia
+    alienInertia = alienIndices.length / 2;
+    return true;
+  } else {
+    alienInertia -= 1;
+    return false;
+  }
+}
+
+function moveAliens() {
+  // Go right until reach border, then go left until reach border, repeat
+  if (!canGoRight()) direction = AlienDirection.Left;
+  if (!canGoLeft()) direction = AlienDirection.Right;
+  const newAlienIndices: Array<[number, number]> = [];
+  // Iterate through board.length - 1, bc last row is hero
+  for (let i = 0; i < board.length - 1; i++) {
+    const boardRowIndex = i;
+    const oldAlienRow = board[boardRowIndex];
+    // Create a new row to replace the old row, prefilled with null
+    const newAlienRow = [...Array(boardWidth).fill(null)];
+    for (let j = 0; j < oldAlienRow.length; j++) {
+      const el = oldAlienRow[j];
+      // We only want to move aliens, no other elements
+      if (isAlien(el)) {
+        // Get the next location of each alien after moving
+        const [nextX, _] = getNextAlienIndex(j, boardRowIndex);
+        newAlienRow[nextX] = el;
+        newAlienIndices.push([nextX, boardRowIndex]);
+      }
+      board[boardRowIndex] = newAlienRow;
+    }
+  }
+  // Reassign alienIndices
+  alienIndices = newAlienIndices;
+  // TODO implement go down
+  //   if (!canGoLeft()) direction = AlienDirection.Right;
+  // }
+}
+
+function getNextAlienIndex(currentX: number, currentY: number) {
+  if (direction === AlienDirection.Right) {
+    return [currentX + 1, currentY];
+  }
+  if (direction === AlienDirection.Left) {
+    return [currentX - 1, currentY];
+  }
+  return [currentX, currentY];
+}
+
+// Determine whether alienZap should move, based on value of alienZapInertia
+function shouldMoveAlienZap() {
+  // Similar to shouldAliensMove, but for alienZap
+  if (alienZapInertia <= 1 && alienZapLocation) {
+    // Reset alienZapInertia
+    alienZapInertia = Math.round(numAliens / 5);
+    return true;
+  } else {
+    alienZapInertia -= 1;
+    return false;
+  }
+}
+
 class Alien {
   species: AlienSpecies;
   xLocation: number;
@@ -145,19 +172,31 @@ function isAlien(el: boardElements): el is Alien {
   return (el as Alien)?.species !== undefined;
 }
 
-function alienShoots(alienZapLocation: [number, number]) {
-  const [x, y] = alienZapLocation;
-  if (!isAlien(board[y][x])) {
+function alienShoots() {
+  const randomAlienIndex = Math.floor(
+    Math.random() * alienIndices.length
+  );
+  alienZapLocation = alienIndices[randomAlienIndex];
+}
+
+function shouldAlienShoot() {
+  if (!alienZapLocation && alienInertia === 0) {
+    return true;
+  } else {
+    return false;
   }
 }
-function checkShouldAlienShoot() {
-  if (!alienZapLocation) {
-    const randomAlienIndex = Math.floor(
-      Math.random() * alienIndices.length
-    );
-    alienZapLocation = alienIndices[randomAlienIndex];
-    alienShoots(alienZapLocation);
+
+function isHeroHit() {
+  const heroLocation = board[board.length - 1].indexOf(hero);
+  if (
+    alienZapLocation &&
+    alienZapLocation[0] === heroLocation &&
+    alienZapLocation[1] === board.length - 1
+  ) {
+    return true;
   }
+  return false;
 }
 
 function canGoRight() {
@@ -182,7 +221,8 @@ function canGoLeft() {
 // Make `process.stdin` begin emitting "keypress" events
 keypress(process.stdin);
 
-function drawAlienZap() {
+init();
+function moveAlienZap() {
   if (alienZapLocation) {
     const [currentX, currentY] = alienZapLocation;
 
@@ -279,10 +319,16 @@ function init() {
     board.push(alienRow);
   }
   const heroRow = [...Array(boardWidth).fill(null)];
+  board.push(heroRow);
+  placeHero();
+  main();
+}
+
+function placeHero() {
+  const heroRow = [...Array(boardWidth).fill(null)];
   const heroIndex = Math.floor(boardWidth / 2);
   heroRow[heroIndex] = hero;
-  board.push(heroRow);
-  main();
+  board[board.length - 1] = heroRow;
 }
 
 function logDebugInfo() {
@@ -294,8 +340,28 @@ function logDebugInfo() {
   console.log('alienInertia', alienInertia);
   console.log('direction', direction);
   console.log('alienZapLocation', alienZapLocation);
+  console.log('alienZapInertia', alienZapInertia);
+  const heroLocation = board[board.length - 1].indexOf(hero);
+  console.log('hero location', heroLocation, board.length - 1);
   console.log('alienIndices.length', alienIndices.length);
   console.log('alienIndices', alienIndices);
+  console.log('\n');
+  console.log(quote);
 }
 
-init();
+// Displays a silly inpirational quote at random
+function getInspirationalQuote() {
+  const quotes = [
+    'We may encounter many defeats but we must not be defeated.',
+    'Fall seven times, stand up eight.',
+    'Don’t let yesterday take up too much of today.',
+    'It’s not whether you get knocked down, it’s whether you get up.',
+    'People who are crazy enough to think they can change the world, are the ones who do.',
+    'Failure will never overtake me if my determination to succeed is strong enough.',
+    'Knowing is not enough; we must apply. Wishing is not enough; we must do.',
+    'We generate fears while we sit. We overcome them by action.',
+    'Whether you think you can or think you can’t, you’re right.',
+    'Security is mostly a superstition. Life is either a daring adventure or nothing.',
+  ];
+  return quotes[Math.floor(Math.random() * quotes.length)];
+}
