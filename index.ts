@@ -1,3 +1,5 @@
+// Full repo at https://github.com/falqas/space-invaders/
+
 import { stdout } from 'process';
 // @ts-ignore
 import keypress from 'keypress'; // older package, no typescript support
@@ -372,4 +374,5 @@ function logDebugInfo() {
 - Add sound in the form of bloops and bleeps
 - Add better board visualization in debugger
 - Use params rather than global vars (seemed fine for this small program)
+- Add unit tests
 */
