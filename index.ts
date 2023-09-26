@@ -3,19 +3,20 @@ import { stdout } from 'process';
 import keypress from 'keypress'; // older package, no typescript support
 
 // Shows debug info in the console, slower frame rate
-const isDebugEnabled = true;
+const isDebugEnabled = false;
 
+// Might encounter some squished aliens if your terminal font is not monospaced
 const hero = '🧑‍';
 enum AlienSpecies {
   A = '👾',
   B = '🛸',
 }
+const alienZap = '⚡';
 const boardWidth = 35;
 const boardHeight = 10;
 const alienCols = 10;
 const alienSpacing = 2; // Ensure that alienSpacing is less than boardWidth / alienCols
 const speedInFramesPerSecond = isDebugEnabled ? 20 : 30;
-const alienZap = '⚡';
 const numAliens = 50;
 let heroIndex = Math.floor(boardWidth / 2);
 let quote: string = '';
@@ -113,8 +114,8 @@ function main() {
       alienShoots();
     }
     if (isHeroHit()) {
+      showHeroCollision();
       placeHero();
-      quote = getInspirationalQuote();
     }
     if (shouldMoveAlienZap()) {
       moveAlienZap();
@@ -133,6 +134,7 @@ function drawBoard() {
       if (isAlien(el)) {
         stdout.write(el.species);
       } else if (el === null) {
+        // Print a space for null elements; try double-spacing in case aliens are squished
         stdout.write(' ');
       } else {
         stdout.write(el);
@@ -181,7 +183,7 @@ function moveAliens() {
   }
   // Reassign alienIndices
   alienIndices = newAlienIndices;
-  // TODO implement go down
+  // TODO implement go down if time
   //   if (!canGoLeft()) direction = AlienDirection.Right;
   // }
 }
@@ -285,15 +287,11 @@ function moveAlienZap() {
   }
 }
 
+// Move hero left or right
 function moveHero(dir: string) {
-  // move hero left or right
-  // check if hero is at edge
-  // if at edge, do nothing
-  // if not at edge, move hero
-  // if keypress left, move hero left
-  // if keypress right, move hero right
   const heroRow = board[board.length - 1];
   if (dir === 'left') {
+    // If at edge, do nothing
     if (heroIndex === 0) return;
     heroRow[heroIndex] = null;
     heroIndex--;
@@ -306,11 +304,46 @@ function moveHero(dir: string) {
   board[board.length - 1][heroIndex] = hero;
 }
 
+// Position hero centered at bottom of board
 function placeHero() {
   const heroRow = [...Array(boardWidth).fill(null)];
   heroIndex = Math.floor(boardWidth / 2);
   heroRow[heroIndex] = hero;
   board[board.length - 1] = heroRow;
+}
+
+// Display collision animation and inspirational quote. Completely unnecessary.
+function showHeroCollision() {
+  const collision = '💥';
+  process.stdout.moveCursor(heroIndex, -1);
+  process.stdout.write(collision + '\n\n');
+  quote = getInspirationalQuote();
+  console.log(`Try again! ${quote}`);
+  sleep(1500);
+}
+
+// Pause for ms milliseconds
+function sleep(ms: number) {
+  const start = Date.now();
+  while (Date.now() < start + ms);
+}
+
+// Displays a silly inpirational quote at random
+// Motivation is important while debugging! :)
+function getInspirationalQuote() {
+  const quotes = [
+    'We may encounter many defeats but we must not be defeated.',
+    'Fall seven times, stand up eight.',
+    'Don’t let yesterday take up too much of today.',
+    'It’s not whether you get knocked down, it’s whether you get up.',
+    'People who are crazy enough to think they can change the world, are the ones who do.',
+    'Failure will never overtake me if my determination to succeed is strong enough.',
+    'Knowing is not enough; we must apply. Wishing is not enough; we must do.',
+    'We generate fears while we sit. We overcome them by action.',
+    'Whether you think you can or think you can’t, you’re right.',
+    'Security is mostly a superstition. Life is either a daring adventure or nothing.',
+  ];
+  return quotes[Math.floor(Math.random() * quotes.length)];
 }
 
 function logDebugInfo() {
@@ -328,21 +361,4 @@ function logDebugInfo() {
   console.log('alienIndices', alienIndices);
   console.log('\n');
   console.log(quote);
-}
-
-// Displays a silly inpirational quote at random
-function getInspirationalQuote() {
-  const quotes = [
-    'We may encounter many defeats but we must not be defeated.',
-    'Fall seven times, stand up eight.',
-    'Don’t let yesterday take up too much of today.',
-    'It’s not whether you get knocked down, it’s whether you get up.',
-    'People who are crazy enough to think they can change the world, are the ones who do.',
-    'Failure will never overtake me if my determination to succeed is strong enough.',
-    'Knowing is not enough; we must apply. Wishing is not enough; we must do.',
-    'We generate fears while we sit. We overcome them by action.',
-    'Whether you think you can or think you can’t, you’re right.',
-    'Security is mostly a superstition. Life is either a daring adventure or nothing.',
-  ];
-  return quotes[Math.floor(Math.random() * quotes.length)];
 }
