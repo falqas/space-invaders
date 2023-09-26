@@ -260,8 +260,16 @@ function canGoLeft() {
 
 function moveAlienZap() {
   if (alienZapLocation) {
-    const [currentX, currentY] = alienZapLocation;
+    // If alien zap is at the bottom of the board, remove it from the board and reset alienZapLocation
+    if (alienZapLocation[1] >= boardHeight) {
+      board[alienZapLocation[1]][alienZapLocation[0]] = null;
+      alienZapLocation = null;
+      return;
+    } else {
+      alienZapLocation[1]++;
+    }
 
+    const [currentX, currentY] = alienZapLocation;
     // Display alien zap if there is no alien in the way
     if (!isAlien(board[currentY][currentX])) {
       board[currentY][currentX] = alienZap;
@@ -273,14 +281,6 @@ function moveAlienZap() {
       !isAlien(board[currentY - 1][currentX])
     ) {
       board[currentY - 1][currentX] = null;
-    }
-
-    // If alien zap is at the bottom of the board, remove it from the board and reset alienZapLocation
-    if (alienZapLocation[1] >= boardHeight) {
-      board[alienZapLocation[1]][alienZapLocation[0]] = null;
-      alienZapLocation = null;
-    } else {
-      alienZapLocation[1]++;
     }
   }
 }
