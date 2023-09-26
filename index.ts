@@ -30,6 +30,8 @@ enum AlienDirection {
   Right,
   Down,
 }
+
+// Vastly simplified alien class from initial design!
 class Alien {
   species: AlienSpecies;
   constructor(species: AlienSpecies) {
@@ -183,9 +185,6 @@ function moveAliens() {
   }
   // Reassign alienIndices
   alienIndices = newAlienIndices;
-  // TODO implement go down if time
-  //   if (!canGoLeft()) direction = AlienDirection.Right;
-  // }
 }
 
 function getNextAlienIndex(currentX: number, currentY: number) {
@@ -362,3 +361,15 @@ function logDebugInfo() {
   console.log('\n');
   console.log(quote);
 }
+
+/* Ideas for improvement:
+- Add number of lives for hero
+- Add difficulty option (affecting speed of aliens and zaps)
+- Add High Scores table
+- Add bonus ufo that appears randomly and moves faster, higher points if hit
+- Add barriers that aliens & hero can hide behind, are breakable
+- Add ability for aliens to move down a row when they reach the edge
+- Add sound in the form of bloops and bleeps
+- Add better board visualization in debugger
+- Use params rather than global vars (seemed fine for this small program)
+*/
