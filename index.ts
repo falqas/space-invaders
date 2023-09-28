@@ -5,7 +5,7 @@ import { stdout } from 'process';
 import keypress from 'keypress'; // older package, no typescript support
 
 // Shows debug info in the console, slower frame rate
-const isDebugEnabled = false;
+const isDebugEnabled = true;
 
 // Might encounter some squished aliens if your terminal font is not monospaced
 const hero = '🧑‍';
@@ -14,6 +14,8 @@ enum AlienSpecies {
   B = '🛸',
 }
 const alienZap = '⚡';
+const heroZap = '🔺';
+const collision = '💥';
 const boardWidth = 35;
 const boardHeight = 10;
 const alienCols = 10;
@@ -26,6 +28,8 @@ let alienIndices: Array<[number, number]> = [];
 let alienZapLocation: [number, number] | null = null;
 let alienInertia: number = numAliens / 2;
 let alienZapInertia: number = Math.round(numAliens / 5);
+let heroZapLocation: [number, number] | null = null;
+let score = 0;
 
 enum AlienDirection {
   Left,
@@ -77,7 +81,21 @@ init();
 
 // Make process.stdin begin emitting "keypress" events
 keypress(process.stdin);
+function heroShoots() {
+  if (heroZapLocation) return; // Only one zap should exist at a time
+  heroZapLocation = [heroIndex, board.length - 2];
+}
 
+function isOutOfBounds(x: number, y: number) {
+  if (x <= 0 || x >= boardWidth) return true;
+  if (y <= 0 || y >= boardHeight) return true;
+  return false;
+}
+
+function playerWins() {
+  console.log('You win!');
+  process.exit();
+}
 // Listen for "keypress" event
 process.stdin.on('keypress', function (_, key) {
   if (key) {
@@ -87,6 +105,9 @@ process.stdin.on('keypress', function (_, key) {
         break;
       case 'right':
         moveHero('right');
+        break;
+      case 'space':
+        heroShoots();
         break;
       // Quit on ctrl-c
       case key.ctrl && 'c':
@@ -103,6 +124,34 @@ if (process.stdin.isTTY) {
 }
 
 process.stderr.write('\x1B[?25l'); // Hide terminal cursor
+function moveHeroZap() {
+  if (!heroZapLocation) return;
+  if (isOutOfBounds(heroZapLocation[0], heroZapLocation[1])) {
+    board[heroZapLocation[1]][heroZapLocation[0]] = null;
+    heroZapLocation = null;
+    return;
+  } else {
+    board[heroZapLocation[1]][heroZapLocation[0]] = null;
+    heroZapLocation[1]--;
+    board[heroZapLocation[1]][heroZapLocation[0]] = heroZap;
+  }
+}
+
+function isAlienHit() {
+  return alienIndices.find(([alienX, alienY]) => {
+    if (heroZapLocation) {
+      return (
+        alienX === heroZapLocation[0] && alienY === heroZapLocation[1]
+      );
+    }
+  });
+}
+function showAlienCollision() {
+  if (!heroZapLocation) return;
+  board[heroZapLocation[1]][heroZapLocation[0]] = collision;
+  score++;
+  heroZapLocation = null;
+}
 
 // Main game loop
 function main() {
@@ -110,6 +159,7 @@ function main() {
   setInterval(function () {
     // Clear the console for the illusion of animation
     console.clear();
+    console.log('Score', score);
     drawBoard();
     if (shouldAliensMove()) {
       moveAliens();
@@ -121,8 +171,17 @@ function main() {
       showHeroCollision();
       placeHero();
     }
+    if (isAlienHit()) {
+      showAlienCollision();
+    }
     if (shouldMoveAlienZap()) {
       moveAlienZap();
+    }
+    if (heroZapLocation) {
+      moveHeroZap();
+    }
+    if (alienIndices.length === 0) {
+      playerWins();
     }
     if (isDebugEnabled) {
       logDebugInfo();
@@ -139,7 +198,7 @@ function drawBoard() {
         stdout.write(el.species);
       } else if (el === null) {
         // Print a space for null elements; try double-spacing in case aliens are squished
-        stdout.write(' ');
+        stdout.write('  ');
       } else {
         stdout.write(el);
       }
@@ -154,7 +213,7 @@ function shouldAliensMove() {
   // Derived from number of aliens on board
   if (alienInertia === 0) {
     // Reset alienInertia
-    alienInertia = alienIndices.length / 2;
+    alienInertia = Math.round(alienIndices.length / 2);
     return true;
   } else {
     alienInertia -= 1;
@@ -164,6 +223,7 @@ function shouldAliensMove() {
 
 function moveAliens() {
   // Go right until reach border, then go left until reach border, repeat
+  if (alienInertia < 0) debugger;
   if (!canGoRight()) direction = AlienDirection.Left;
   if (!canGoLeft()) direction = AlienDirection.Right;
   const newAlienIndices: Array<[number, number]> = [];
@@ -315,7 +375,6 @@ function placeHero() {
 
 // Display collision animation and inspirational quote. Completely unnecessary.
 function showHeroCollision() {
-  const collision = '💥';
   process.stdout.moveCursor(heroIndex, -1);
   process.stdout.write(collision + '\n\n');
   quote = getInspirationalQuote();
