@@ -81,21 +81,7 @@ init();
 
 // Make process.stdin begin emitting "keypress" events
 keypress(process.stdin);
-function heroShoots() {
-  if (heroZapLocation) return; // Only one zap should exist at a time
-  heroZapLocation = [heroIndex, board.length - 2];
-}
 
-function isOutOfBounds(x: number, y: number) {
-  if (x <= 0 || x >= boardWidth) return true;
-  if (y <= 0 || y >= boardHeight) return true;
-  return false;
-}
-
-function playerWins() {
-  console.log('You win!');
-  process.exit();
-}
 // Listen for "keypress" event
 process.stdin.on('keypress', function (_, key) {
   if (key) {
@@ -124,34 +110,6 @@ if (process.stdin.isTTY) {
 }
 
 process.stderr.write('\x1B[?25l'); // Hide terminal cursor
-function moveHeroZap() {
-  if (!heroZapLocation) return;
-  if (isOutOfBounds(heroZapLocation[0], heroZapLocation[1])) {
-    board[heroZapLocation[1]][heroZapLocation[0]] = null;
-    heroZapLocation = null;
-    return;
-  } else {
-    board[heroZapLocation[1]][heroZapLocation[0]] = null;
-    heroZapLocation[1]--;
-    board[heroZapLocation[1]][heroZapLocation[0]] = heroZap;
-  }
-}
-
-function isAlienHit() {
-  return alienIndices.find(([alienX, alienY]) => {
-    if (heroZapLocation) {
-      return (
-        alienX === heroZapLocation[0] && alienY === heroZapLocation[1]
-      );
-    }
-  });
-}
-function showAlienCollision() {
-  if (!heroZapLocation) return;
-  board[heroZapLocation[1]][heroZapLocation[0]] = collision;
-  score++;
-  heroZapLocation = null;
-}
 
 // Main game loop
 function main() {
@@ -380,6 +338,52 @@ function showHeroCollision() {
   quote = getInspirationalQuote();
   console.log(`Try again! ${quote}`);
   sleep(1500);
+}
+
+function heroShoots() {
+  if (heroZapLocation) return; // Only one zap should exist at a time
+  heroZapLocation = [heroIndex, board.length - 2];
+}
+
+function isOutOfBounds(x: number, y: number) {
+  if (x <= 0 || x >= boardWidth) return true;
+  if (y <= 0 || y >= boardHeight) return true;
+  return false;
+}
+
+function moveHeroZap() {
+  if (!heroZapLocation) return;
+  if (isOutOfBounds(heroZapLocation[0], heroZapLocation[1])) {
+    board[heroZapLocation[1]][heroZapLocation[0]] = null;
+    heroZapLocation = null;
+    return;
+  } else {
+    board[heroZapLocation[1]][heroZapLocation[0]] = null;
+    heroZapLocation[1]--;
+    board[heroZapLocation[1]][heroZapLocation[0]] = heroZap;
+  }
+}
+
+function isAlienHit() {
+  return alienIndices.find(([alienX, alienY]) => {
+    if (heroZapLocation) {
+      return (
+        alienX === heroZapLocation[0] && alienY === heroZapLocation[1]
+      );
+    }
+  });
+}
+
+function showAlienCollision() {
+  if (!heroZapLocation) return;
+  board[heroZapLocation[1]][heroZapLocation[0]] = collision;
+  score++;
+  heroZapLocation = null;
+}
+
+function playerWins() {
+  console.log('You win!');
+  process.exit();
 }
 
 // Pause for ms milliseconds
